@@ -42,13 +42,14 @@ easy to build on x86-64 Linux and on 64-bit Windows with MinGW installed
 The Makefile expects the ZSTD compression library and header files to be
 available. If they are not installed or not found, you can switch to LZ4
 
-There are five programs:
+There are six programs:
 * rtbgen for generating pawnless tablebases.
 * rtbgenp for generating pawnful tablebases.
 * rtbver for verifying pawnless tablebases.
 * rtbverp for verifying pawnful tablebases.
 * tbcheck for verifying the integrity of tablebase files based on an embedded
 checksum.
+* tbdecompress for expanding pawnless WDL and DTZ files into raw symbol streams.
 
 **Note 1:** Since a correct set of checksums is known, there is no real need
 to run rtbver and rtbverp.
@@ -126,6 +127,32 @@ Print embedded checksums. Do not check correctness.
 Compares the embedded checksum for each tablebase file listed in wdl345.txt
 with the checksum specified in wdl345.txt. Note that these are not md5sums.
 
+**Usage:** `tbdecompress KQRvKR`
+
+Produces KQRvKR.rtbw.raw and KQRvKR.rtbz.raw from the corresponding pawnless
+tablebase files. For a two-sided WDL table, the white-to-move stream is followed
+by the black-to-move stream. The raw files contain the mapped and permuted symbol
+streams used by the Syzygy compressor, without headers or padding. This target
+does not require ZSTD.
+
+**Options:**
+
+--input-dir dir  (or -i dir)
+
+Read the .rtbw and .rtbz files from dir.
+
+--output-dir dir  (or -o dir)
+
+Write the raw output files to dir.
+
+--threads n  (or -t n)
+
+Use n decompression threads.
+
+--force  (or -f)
+
+Overwrite existing raw output files.
+
 Note: The programs rtbgen, rtbgenp, rtbver and rtbverp require access
 to WDL tablebase files for "subtables". These should be present in
 directories/folders listed in the **$RTPATH** environment variable. The
@@ -191,4 +218,3 @@ Others (C-604/10)).
 
 Ronald de Man  
 syzygy\_tb@yahoo.com
-
