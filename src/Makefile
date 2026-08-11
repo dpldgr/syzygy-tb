@@ -35,9 +35,9 @@ CFLAGS = -O3 -march=native -pipe -D_GNU_SOURCE -Wall -std=c11 -flto=auto
 
 export FLAGS CC CFLAGS LDFLAGS
 
-all: rtbgen rtbgenp rtbver rtbverp tbcheck
+all: rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress
 
-rtbgen rtbgenp rtbver rtbverp tbcheck clean:
+rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress clean:
 	@$(MAKE) -f Makefile.regular $@
 
 atbgen atbgenp atbver atbverp aclean:
@@ -61,7 +61,7 @@ giveaway: gtbgen gtbgenp tbcheck
 
 shatranj: jtbgen jtbgenp tbcheck
 
-.PHONY: rtbgen rtbgenp rtbver rtbverp tbcheck clean \
+.PHONY: rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress clean \
 	atbgen atbgenp atbver atbverp aclean \
 	stbgen stbgenp sclean \
 	gtbgen gtbgenp gclean \
