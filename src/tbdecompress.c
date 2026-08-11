@@ -146,16 +146,22 @@ static FILE *open_output(const char *final_name, char **temporary_name)
 static void write_all(FILE *F, const char *name, const uint8_t *data,
     uint64_t size)
 {
+  const size_t max_chunk = 64 * 1024 * 1024;
+
   while (size) {
-    size_t chunk = size > (uint64_t)SIZE_MAX ? SIZE_MAX : (size_t)size;
+    size_t chunk = size > (uint64_t)max_chunk ? max_chunk : (size_t)size;
     size_t written = fwrite(data, 1, chunk, F);
-    if (written != chunk) {
+    if (!written) {
       fprintf(stderr, "Could not write %s: %s\n", name,
-          ferror(F) ? strerror(errno) : "short write");
+          ferror(F) ? strerror(errno) : "zero-byte write");
       exit(EXIT_FAILURE);
     }
     data += written;
     size -= written;
+    if (written != chunk && ferror(F)) {
+      fprintf(stderr, "Could not write %s: %s\n", name, strerror(errno));
+      exit(EXIT_FAILURE);
+    }
   }
 }
 
