@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #endif
 
+#ifndef DECOMPRESSION_ONLY
 #ifdef USE_ZSTD
 #ifdef _WIN32
 #include <zstd/zstd.h>
@@ -26,6 +27,7 @@
 #endif
 #else
 #include "lz4.h"
+#endif
 #endif
 
 #include "defs.h"
@@ -114,7 +116,7 @@ void *alloc_aligned(uint64_t size, uintptr_t alignment)
 {
   void *ptr;
 
-#ifndef __WIN32__
+#ifndef _WIN32
   posix_memalign(&ptr, alignment, size);
   if (ptr == NULL) {
     fprintf(stderr, "Could not allocate sufficient memory.\n");
@@ -138,7 +140,7 @@ void *alloc_huge(uint64_t size)
 {
   void *ptr;
 
-#ifndef __WIN32__
+#ifndef _WIN32
 
   posix_memalign(&ptr, 2 * 1024 * 1024, size);
   if (ptr == NULL) {
@@ -162,6 +164,7 @@ void *alloc_huge(uint64_t size)
   return ptr;
 }
 
+#ifndef DECOMPRESSION_ONLY
 void write_u32(FILE *F, uint32_t v)
 {
   fputc(v & 0xff, F);
@@ -473,3 +476,4 @@ void read_data_u16(FILE *F, uint16_t *dst, uint64_t size, uint16_t *v)
   cmprs_v = v;
   run_compression(read_data_worker_u16);
 }
+#endif
