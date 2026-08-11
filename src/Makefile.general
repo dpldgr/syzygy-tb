@@ -14,6 +14,7 @@ GENTBOBJS = tbgen.o permute.o compress.o huffman.o threads.o lz4.o checksum.o ci
 GENTBPOBJS = tbgenp.o permute.o compress.o huffman.o threads.o lz4.o checksum.o city-c.o util.o
 VERTBOBJS = tbver.o decompress.o threads.o checksum.o city-c.o util.o
 VERTBPOBJS = tbverp.o decompress.o threads.o checksum.o city-c.o util.o
+DECOMPOBJS = tbdecompress.o decompress.o decompress-piece.o threads.o util-decomp.o
 
 TBCHECKOBJS = tbcheck.o threads.o checksum.o city-c.o lz4.o util.o
 
@@ -21,6 +22,7 @@ CFILES = $(filter $(wildcard *.c), $(OBJS:%.o=%.c))
 
 include $(CFILES:%.c=$(DEPDIR)/%.P)
 include $(TBOBJS:%.o=$(DEPDIR)/%.P)
+include $(filter-out $(DEPDIR)/util-decomp.P,$(DECOMPOBJS:%.o=$(DEPDIR)/%.P))
 
 $(NAME): $(OBJS) # $(OBJS:%=$(OBJDIR)/%)
 	$(CC) $(CFLAGS) -o $(NAME) $(OBJS:%=$(OBJDIR)/%)
@@ -33,8 +35,12 @@ $(DEPDIR)/%.P: %.c
 	@mkdir -p $(DEPDIR)
 	$(SHELL) -ec '$(CC) -M $(FLAGS) $*.c | sed s/$*\.o/$*\.o\ $*\.P/ >$@'
 
+$(OBJDIR)/util-decomp.o: util.c
+	@mkdir -p $(OBJDIR)
+	$(CC) $(CFLAGS) -c util.c $(FLAGS) -UUSE_ZSTD -DDECOMPRESSION_ONLY -o $@
+
 $(CLEAN):
-	rm -f $(TBOBJS:%=$(OBJDIR)/%)
+	rm -f $(TBOBJS:%=$(OBJDIR)/%) $(DECOMPOBJS:%=$(OBJDIR)/%)
 
 $(GENTBNAME): $(GENTBOBJS)
 	$(CC) $(CFLAGS) -o $(GENTBNAME) $(GENTBOBJS:%=$(OBJDIR)/%) $(LDFLAGS)
@@ -48,6 +54,8 @@ $(VERTBNAME): $(VERTBOBJS)
 $(VERTBPNAME): $(VERTBPOBJS)
 	$(CC) $(CFLAGS) -o $(VERTBPNAME) $(VERTBPOBJS:%=$(OBJDIR)/%) $(LDFLAGS)
 
+$(DECOMPNAME): $(DECOMPOBJS)
+	$(CC) $(CFLAGS) -o $(DECOMPNAME) $(DECOMPOBJS:%=$(OBJDIR)/%)
+
 tbcheck: $(TBCHECKOBJS)
 	$(CC) $(CFLAGS) -o tbcheck $(TBCHECKOBJS:%=$(OBJDIR)/%)
-

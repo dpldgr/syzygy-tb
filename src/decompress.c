@@ -491,13 +491,19 @@ uint8_t *decompress_table(struct tb_handle *H, int bside, int f)
 
 struct tb_handle *open_tb_handle(char *tablename, int wdl)
 {
-  char name[128];
+  size_t len = strlen(tablename) + strlen(wdl ? WDLSUFFIX : DTZSUFFIX) + 1;
+  char *name = malloc(len);
   struct tb_handle *H = malloc(sizeof(struct tb_handle));
 
-  strcpy(name, tablename);
-  strcat(name, wdl ? WDLSUFFIX : DTZSUFFIX);
+  if (!name || !H) {
+    fprintf(stderr, "Could not allocate sufficient memory.\n");
+    exit(EXIT_FAILURE);
+  }
+  snprintf(name, len, "%s%s", tablename, wdl ? WDLSUFFIX : DTZSUFFIX);
   if (!(H->F = fopen(name, "rb"))) {
     fprintf(stderr, "Could not open %s for reading.\n", name);
+    free(name);
+    free(H);
     exit(EXIT_FAILURE);
   }
   FD fd = open_file(name);
@@ -505,6 +511,7 @@ struct tb_handle *open_tb_handle(char *tablename, int wdl)
   H->data = (uint8_t *)map_file(fd, 1, &(H->mmap));
   close_file(fd);
   H->wdl = wdl;
+  free(name);
 
   return H;
 }
