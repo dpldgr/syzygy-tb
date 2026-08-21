@@ -19,23 +19,50 @@
 int numpcs;
 int numpawns;
 
-static const char *input_dir = ".";
 static const char *output_dir = ".";
 static int force;
 
 static void usage(FILE *F, const char *program)
 {
   fprintf(F,
-      "Usage: %s [OPTIONS] MATERIAL\n"
-      "Decompress MATERIAL.rtbw and MATERIAL.rtbz into raw symbol streams.\n\n"
-      "  -i, --input-dir DIR   read tablebases from DIR (default: .)\n"
+      "Usage: %s [OPTIONS]\n"
+      "Decompress one or both tablebase files into raw symbol streams.\n\n"
+      "  -iw, --input-rtbw FILE  decompress the WDL table FILE\n"
+      "  -iz, --input-rtbz FILE  decompress the DTZ table FILE\n"
       "  -o, --output-dir DIR  write raw files to DIR (default: .)\n"
       "  -t, --threads N       use N decompression threads (default: 1)\n"
       "  -f, --force           overwrite existing output files\n"
       "  -h, --help            display this help and exit\n\n"
-      "The output files are MATERIAL.rtbw.raw and MATERIAL.rtbz.raw.\n"
-      "For split WDL tables, the WTM stream is followed by the BTM stream.\n",
+      "Each output filename identifies its WTM, BTM, or shared subtable.\n",
       program);
+}
+
+static char *material_from_input(const char *name, const char *suffix)
+{
+  const char *base = name;
+  const char *slash = strrchr(name, '/');
+  const char *backslash = strrchr(name, '\\');
+  size_t baselen;
+  char *material;
+
+  if (slash && (!backslash || slash > backslash))
+    base = slash + 1;
+  else if (backslash)
+    base = backslash + 1;
+  baselen = strlen(base);
+  if (baselen <= strlen(suffix) ||
+      strcmp(base + baselen - strlen(suffix), suffix)) {
+    fprintf(stderr, "%s must have the %s suffix.\n", name, suffix);
+    exit(EXIT_FAILURE);
+  }
+  material = malloc(baselen - strlen(suffix) + 1);
+  if (!material) {
+    fprintf(stderr, "Could not allocate sufficient memory.\n");
+    exit(EXIT_FAILURE);
+  }
+  memcpy(material, base, baselen - strlen(suffix));
+  material[baselen - strlen(suffix)] = '\0';
+  return material;
 }
 
 static char *make_path(const char *dir, const char *name, const char *suffix)
@@ -182,37 +209,41 @@ static void finish_output(FILE *F, const char *temporary_name,
   }
 }
 
-static void decompress_wdl(const char *base, const char *material)
+static void decompress_wdl(const char *input, const char *material)
 {
-  char *output = make_path(output_dir, material, ".rtbw.raw");
-  char *temporary;
-  FILE *F = open_output(output, &temporary);
-  struct tb_handle *H = open_tb_handle((char *)base, 1);
-  uint64_t offset = 0;
+  struct tb_handle *H = open_tb_file(input, 1);
 
   decomp_init_table(H);
   for (int bside = 0; bside < (H->split ? 2 : 1); bside++) {
+    const char *suffix = !H->split ? ".shared.rtbw.raw" :
+        (bside ? ".btm.rtbw.raw" : ".wtm.rtbw.raw");
+    char *output = make_path(output_dir, material, suffix);
+    char *temporary;
+    FILE *F = open_output(output, &temporary);
     uint64_t size = H->file[0].size[bside];
     uint8_t *data = decompress_table(H, bside, 0);
-    printf("%s: offset %" PRIu64 ", %s, %" PRIu64 " bytes\n", output,
-        offset, bside ? "BTM" : (H->split ? "WTM" : "shared WDL"), size);
+    printf("%s: %s, %" PRIu64 " bytes\n", output,
+        bside ? "BTM" : (H->split ? "WTM" : "shared WDL"), size);
     write_all(F, temporary, data, size);
-    offset += size;
+    finish_output(F, temporary, output);
+    free(temporary);
+    free(output);
   }
   close_tb(H);
-  finish_output(F, temporary, output);
-  free(temporary);
-  free(output);
 }
 
-static void decompress_dtz(const char *base, const char *material)
+static void decompress_dtz(const char *input, const char *material)
 {
-  char *output = make_path(output_dir, material, ".rtbz.raw");
+  struct tb_handle *H = open_tb_file(input, 0);
+  const char *suffix;
+  char *output;
   char *temporary;
-  FILE *F = open_output(output, &temporary);
-  struct tb_handle *H = open_tb_handle((char *)base, 0);
+  FILE *F;
 
   decomp_init_table(H);
+  suffix = get_dtz_side(H, 0) ? ".btm.rtbz.raw" : ".wtm.rtbz.raw";
+  output = make_path(output_dir, material, suffix);
+  F = open_output(output, &temporary);
   uint64_t size = H->file[0].size[0];
   uint8_t *data = decompress_table(H, 0, 0);
   printf("%s: offset 0, %s DTZ, %" PRIu64 " bytes\n", output,
@@ -228,9 +259,14 @@ int main(int argc, char **argv)
 {
   int pcs[16];
   int value;
-  char *base;
+  const char *input_wdl = NULL;
+  const char *input_dtz = NULL;
+  char *material_wdl = NULL;
+  char *material_dtz = NULL;
+  const char *material;
   static struct option options[] = {
-    { "input-dir", required_argument, NULL, 'i' },
+    { "input-rtbw", required_argument, NULL, 'w' },
+    { "input-rtbz", required_argument, NULL, 'z' },
     { "output-dir", required_argument, NULL, 'o' },
     { "threads", required_argument, NULL, 't' },
     { "force", no_argument, NULL, 'f' },
@@ -238,10 +274,15 @@ int main(int argc, char **argv)
     { NULL, 0, NULL, 0 }
   };
 
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "-iw")) argv[i] = "-w";
+    if (!strcmp(argv[i], "-iz")) argv[i] = "-z";
+  }
   numthreads = 1;
-  while ((value = getopt_long(argc, argv, "i:o:t:fh", options, NULL)) != -1) {
+  while ((value = getopt_long(argc, argv, "w:z:o:t:fh", options, NULL)) != -1) {
     switch (value) {
-    case 'i': input_dir = optarg; break;
+    case 'w': input_wdl = optarg; break;
+    case 'z': input_dtz = optarg; break;
     case 'o': output_dir = optarg; break;
     case 't': {
       char *end;
@@ -258,20 +299,27 @@ int main(int argc, char **argv)
     default: usage(stderr, argv[0]); return EXIT_FAILURE;
     }
   }
-  if (optind + 1 != argc) {
+  if (optind != argc || (!input_wdl && !input_dtz)) {
     usage(stderr, argv[0]);
     return EXIT_FAILURE;
   }
 
-  parse_material(argv[optind], pcs);
+  if (input_wdl) material_wdl = material_from_input(input_wdl, ".rtbw");
+  if (input_dtz) material_dtz = material_from_input(input_dtz, ".rtbz");
+  if (material_wdl && material_dtz && strcmp(material_wdl, material_dtz)) {
+    fprintf(stderr, "WDL and DTZ inputs must have the same material name.\n");
+    return EXIT_FAILURE;
+  }
+  material = material_wdl ? material_wdl : material_dtz;
+  parse_material(material, pcs);
   decomp_init_piece(pcs);
   total_work = numthreads == 1 ? 1 : 100 + 10 * numthreads;
   init_threads(0);
   gettimeofday(&cur_time, NULL);
 
-  base = make_path(input_dir, argv[optind], "");
-  decompress_wdl(base, argv[optind]);
-  decompress_dtz(base, argv[optind]);
-  free(base);
+  if (input_wdl) decompress_wdl(input_wdl, material);
+  if (input_dtz) decompress_dtz(input_dtz, material);
+  free(material_wdl);
+  free(material_dtz);
   return EXIT_SUCCESS;
 }
