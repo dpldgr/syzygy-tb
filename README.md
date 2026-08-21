@@ -127,19 +127,23 @@ Print embedded checksums. Do not check correctness.
 Compares the embedded checksum for each tablebase file listed in wdl345.txt
 with the checksum specified in wdl345.txt. Note that these are not md5sums.
 
-**Usage:** `tbdecompress KQRvKR`
+**Usage:** `tbdecompress --input-rtbw KQRvKR.rtbw --input-rtbz KQRvKR.rtbz`
 
-Produces KQRvKR.rtbw.raw and KQRvKR.rtbz.raw from the corresponding pawnless
-tablebase files. For a two-sided WDL table, the white-to-move stream is followed
-by the black-to-move stream. The raw files contain the mapped and permuted symbol
-streams used by the Syzygy compressor, without headers or padding. This target
-does not require ZSTD.
+Produces separate raw files for the streams in the selected pawnless tablebase
+files. Output names include `.wtm`, `.btm`, or `.shared` before the table type;
+for example, `KQRvKR.wtm.rtbw.raw`. The raw files contain the mapped and permuted
+symbol streams used by the Syzygy compressor, without headers or padding. This
+target does not require ZSTD.
 
 **Options:**
 
---input-dir dir  (or -i dir)
+--input-rtbw file  (or -iw file)
 
-Read the .rtbw and .rtbz files from dir.
+Decompress the specified .rtbw file.
+
+--input-rtbz file  (or -iz file)
+
+Decompress the specified .rtbz file.
 
 --output-dir dir  (or -o dir)
 
