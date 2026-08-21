@@ -39,6 +39,7 @@ struct tb_handle {
 void decomp_init_piece(int *pcs);
 void decomp_init_pawn(int *pcs, int *pt);
 struct tb_handle *open_tb_handle(char *tablename, int wdl);
+struct tb_handle *open_tb_file(const char *name, int wdl);
 void decomp_init_table(struct tb_handle *H);
 uint8_t *decompress_table(struct tb_handle *H, int bside, int f);
 void close_tb(struct tb_handle *H);
