@@ -49,7 +49,7 @@ There are six programs:
 * rtbverp for verifying pawnful tablebases.
 * tbcheck for verifying the integrity of tablebase files based on an embedded
 checksum.
-* tbdecompress for expanding pawnless WDL and DTZ files into raw symbol streams.
+* tbdecompress for expanding WDL and DTZ files into raw symbol streams.
 
 **Note 1:** Since a correct set of checksums is known, there is no real need
 to run rtbver and rtbverp.
@@ -129,13 +129,20 @@ with the checksum specified in wdl345.txt. Note that these are not md5sums.
 
 **Usage:** `tbdecompress --input-rtbw KQRvKR.rtbw --input-rtbz KQRvKR.rtbz`
 
-Exports each subtable from the specified pawnless tablebase files. WDL output is
-named KQRvKR.wtm.rtbw.raw and KQRvKR.btm.rtbw.raw for a two-sided table, or
-KQRvKR.shared.rtbw.raw for a shared table. DTZ output is named
-KQRvKR.wtm.rtbz.raw or KQRvKR.btm.rtbz.raw according to the side stored by the
-table. The raw files contain the mapped and permuted symbol streams used by the
-Syzygy compressor, without headers or padding. This target does not require
-ZSTD. Either input option may be used independently.
+Exports each subtable from the specified tablebase files. WDL output is named
+KQRvKR.w.rtbw.raw and KQRvKR.b.rtbw.raw for a two-sided pawnless table, or
+KQRvKR.s.rtbw.raw for a shared table. DTZ output is named KQRvKR.w.rtbz.raw or
+KQRvKR.b.rtbz.raw according to the side stored by the table.
+
+Pawnful tables contain four subtables, corresponding to the leading pawn on the
+a-, b-, c-, or d-file after horizontal symmetry is applied. The file letter is
+included before the side, for example KQPvK.a.w.rtbw.raw,
+KQPvK.d.b.rtbw.raw, or KQPvK.c.s.rtbw.raw. Pawnful DTZ output follows the same
+convention, for example KQPvK.a.w.rtbz.raw.
+
+The raw files contain the mapped and permuted symbol streams used by the Syzygy
+compressor, without headers or padding. This target does not require ZSTD.
+Either input option may be used independently.
 
 **Options:**
 

@@ -126,12 +126,6 @@ static void parse_material(const char *material, int *pcs)
         material, numpcs, TBPIECES);
     exit(EXIT_FAILURE);
   }
-  if (numpawns) {
-    fprintf(stderr,
-        "Pawnful material is not supported yet; the initial implementation "
-        "supports pawnless tables.\n");
-    exit(EXIT_FAILURE);
-  }
   return;
 
 invalid:
@@ -214,20 +208,29 @@ static void decompress_wdl(const char *input, const char *material)
   struct tb_handle *H = open_tb_file(input, 1);
 
   decomp_init_table(H);
-  for (int bside = 0; bside < (H->split ? 2 : 1); bside++) {
-    const char *suffix = !H->split ? ".shared.rtbw.raw" :
-        (bside ? ".btm.rtbw.raw" : ".wtm.rtbw.raw");
-    char *output = make_path(output_dir, material, suffix);
-    char *temporary;
-    FILE *F = open_output(output, &temporary);
-    uint64_t size = H->file[0].size[bside];
-    uint8_t *data = decompress_table(H, bside, 0);
-    printf("%s: %s, %" PRIu64 " bytes\n", output,
-        bside ? "BTM" : (H->split ? "WTM" : "shared WDL"), size);
-    write_all(F, temporary, data, size);
-    finish_output(F, temporary, output);
-    free(temporary);
-    free(output);
+  for (int f = 0; f < H->num_files; f++) {
+    for (int bside = 0; bside < (H->split ? 2 : 1); bside++) {
+      char suffix[32];
+      char side = !H->split ? 's' : (bside ? 'b' : 'w');
+      char *output;
+      char *temporary;
+      FILE *F;
+      uint64_t size = H->file[f].size[bside];
+      uint8_t *data = decompress_table(H, bside, f);
+
+      if (H->has_pawns)
+        snprintf(suffix, sizeof(suffix), ".%c.%c.rtbw.raw", 'a' + f, side);
+      else
+        snprintf(suffix, sizeof(suffix), ".%c.rtbw.raw", side);
+      output = make_path(output_dir, material, suffix);
+      F = open_output(output, &temporary);
+      printf("%s: %s, %" PRIu64 " bytes\n", output,
+          bside ? "BTM" : (H->split ? "WTM" : "shared WDL"), size);
+      write_all(F, temporary, data, size);
+      finish_output(F, temporary, output);
+      free(temporary);
+      free(output);
+    }
   }
   close_tb(H);
 }
@@ -235,24 +238,32 @@ static void decompress_wdl(const char *input, const char *material)
 static void decompress_dtz(const char *input, const char *material)
 {
   struct tb_handle *H = open_tb_file(input, 0);
-  const char *suffix;
-  char *output;
-  char *temporary;
-  FILE *F;
 
   decomp_init_table(H);
-  suffix = get_dtz_side(H, 0) ? ".btm.rtbz.raw" : ".wtm.rtbz.raw";
-  output = make_path(output_dir, material, suffix);
-  F = open_output(output, &temporary);
-  uint64_t size = H->file[0].size[0];
-  uint8_t *data = decompress_table(H, 0, 0);
-  printf("%s: offset 0, %s DTZ, %" PRIu64 " bytes\n", output,
-      get_dtz_side(H, 0) ? "BTM" : "WTM", size);
-  write_all(F, temporary, data, size);
+  for (int f = 0; f < H->num_files; f++) {
+    char suffix[32];
+    int bside = get_dtz_side(H, f);
+    char *output;
+    char *temporary;
+    FILE *F;
+    uint64_t size = H->file[f].size[0];
+    uint8_t *data = decompress_table(H, 0, f);
+
+    if (H->has_pawns)
+      snprintf(suffix, sizeof(suffix), ".%c.%c.rtbz.raw", 'a' + f,
+          bside ? 'b' : 'w');
+    else
+      snprintf(suffix, sizeof(suffix), ".%c.rtbz.raw", bside ? 'b' : 'w');
+    output = make_path(output_dir, material, suffix);
+    F = open_output(output, &temporary);
+    printf("%s: %s DTZ, %" PRIu64 " bytes\n", output,
+        bside ? "BTM" : "WTM", size);
+    write_all(F, temporary, data, size);
+    finish_output(F, temporary, output);
+    free(temporary);
+    free(output);
+  }
   close_tb(H);
-  finish_output(F, temporary, output);
-  free(temporary);
-  free(output);
 }
 
 int main(int argc, char **argv)
@@ -312,7 +323,13 @@ int main(int argc, char **argv)
   }
   material = material_wdl ? material_wdl : material_dtz;
   parse_material(material, pcs);
-  decomp_init_piece(pcs);
+  if (numpawns) {
+    int primary_pawn = pcs[WPAWN] > 0 &&
+        (pcs[BPAWN] == 0 || pcs[WPAWN] <= pcs[BPAWN]) ? WPAWN : BPAWN;
+    decomp_init_pawn(pcs, &primary_pawn);
+  } else {
+    decomp_init_piece(pcs);
+  }
   total_work = numthreads == 1 ? 1 : 100 + 10 * numthreads;
   init_threads(0);
   gettimeofday(&cur_time, NULL);

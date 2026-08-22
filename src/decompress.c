@@ -241,7 +241,8 @@ void decomp_init_table(struct tb_handle *H)
   if (pawns0 == 0)
     decomp_setup_pieces_piece(H, H->file[0].size);
   else if (files == 1) {
-    // unsupported (and not used)
+    fprintf(stderr, "Unsupported pawn table without a-d subtables.\n");
+    exit(EXIT_FAILURE);
   } else {
     for (f = 0; f < 4; f++)
       decomp_setup_pieces_pawn(H, H->file[f].size, f);
