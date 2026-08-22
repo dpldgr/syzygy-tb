@@ -241,7 +241,8 @@ void decomp_init_table(struct tb_handle *H)
   if (pawns0 == 0)
     decomp_setup_pieces_piece(H, H->file[0].size);
   else if (files == 1) {
-    // unsupported (and not used)
+    fprintf(stderr, "Unsupported pawn table without a-d subtables.\n");
+    exit(EXIT_FAILURE);
   } else {
     for (f = 0; f < 4; f++)
       decomp_setup_pieces_pawn(H, H->file[f].size, f);
@@ -489,20 +490,16 @@ uint8_t *decompress_table(struct tb_handle *H, int bside, int f)
   return table;
 }
 
-struct tb_handle *open_tb_handle(char *tablename, int wdl)
+struct tb_handle *open_tb_file(const char *name, int wdl)
 {
-  size_t len = strlen(tablename) + strlen(wdl ? WDLSUFFIX : DTZSUFFIX) + 1;
-  char *name = malloc(len);
   struct tb_handle *H = malloc(sizeof(struct tb_handle));
 
-  if (!name || !H) {
+  if (!H) {
     fprintf(stderr, "Could not allocate sufficient memory.\n");
     exit(EXIT_FAILURE);
   }
-  snprintf(name, len, "%s%s", tablename, wdl ? WDLSUFFIX : DTZSUFFIX);
   if (!(H->F = fopen(name, "rb"))) {
     fprintf(stderr, "Could not open %s for reading.\n", name);
-    free(name);
     free(H);
     exit(EXIT_FAILURE);
   }
@@ -511,8 +508,23 @@ struct tb_handle *open_tb_handle(char *tablename, int wdl)
   H->data = (uint8_t *)map_file(fd, 1, &(H->mmap));
   close_file(fd);
   H->wdl = wdl;
-  free(name);
 
+  return H;
+}
+
+struct tb_handle *open_tb_handle(char *tablename, int wdl)
+{
+  size_t len = strlen(tablename) + strlen(wdl ? WDLSUFFIX : DTZSUFFIX) + 1;
+  char *name = malloc(len);
+  struct tb_handle *H;
+
+  if (!name) {
+    fprintf(stderr, "Could not allocate sufficient memory.\n");
+    exit(EXIT_FAILURE);
+  }
+  snprintf(name, len, "%s%s", tablename, wdl ? WDLSUFFIX : DTZSUFFIX);
+  H = open_tb_file(name, wdl);
+  free(name);
   return H;
 }
 
