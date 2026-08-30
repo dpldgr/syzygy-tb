@@ -49,7 +49,7 @@ There are six programs:
 * rtbverp for verifying pawnful tablebases.
 * tbcheck for verifying the integrity of tablebase files based on an embedded
 checksum.
-* tbdecompress for expanding pawnless WDL and DTZ files into raw symbol streams.
+* tbdecompress for expanding WDL and DTZ files into raw symbol streams.
 
 **Note 1:** Since a correct set of checksums is known, there is no real need
 to run rtbver and rtbverp.
@@ -127,19 +127,33 @@ Print embedded checksums. Do not check correctness.
 Compares the embedded checksum for each tablebase file listed in wdl345.txt
 with the checksum specified in wdl345.txt. Note that these are not md5sums.
 
-**Usage:** `tbdecompress KQRvKR`
+**Usage:** `tbdecompress --input-rtbw KQRvKR.rtbw --input-rtbz KQRvKR.rtbz`
 
-Produces KQRvKR.rtbw.raw and KQRvKR.rtbz.raw from the corresponding pawnless
-tablebase files. For a two-sided WDL table, the white-to-move stream is followed
-by the black-to-move stream. The raw files contain the mapped and permuted symbol
-streams used by the Syzygy compressor, without headers or padding. This target
-does not require ZSTD.
+Supports both pawnless and pawnful tablebase files and exports every subtable
+from the specified inputs. Pawnless WDL output is named
+KQRvKR.w.rtbw.raw and KQRvKR.b.rtbw.raw for a two-sided pawnless table, or
+KQRvKR.s.rtbw.raw for a shared table. DTZ output is named KQRvKR.w.rtbz.raw or
+KQRvKR.b.rtbz.raw according to the side stored by the table.
+
+Pawnful tables contain four subtables, corresponding to the leading pawn on the
+a-, b-, c-, or d-file after horizontal symmetry is applied. The file letter is
+included before the side, for example KQPvK.a.w.rtbw.raw,
+KQPvK.d.b.rtbw.raw, or KQPvK.c.s.rtbw.raw. Pawnful DTZ output follows the same
+convention, for example KQPvK.a.w.rtbz.raw.
+
+The raw files contain the mapped and permuted symbol streams used by the Syzygy
+compressor, without headers or padding. This target does not require ZSTD.
+Either input option may be used independently.
 
 **Options:**
 
---input-dir dir  (or -i dir)
+--input-rtbw file  (or -iw file)
 
-Read the .rtbw and .rtbz files from dir.
+Export the subtables in the specified WDL file.
+
+--input-rtbz file  (or -iz file)
+
+Export all subtables in the specified DTZ file.
 
 --output-dir dir  (or -o dir)
 
