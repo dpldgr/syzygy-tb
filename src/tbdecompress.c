@@ -26,7 +26,8 @@ static void usage(FILE *F, const char *program)
 {
   fprintf(F,
       "Usage: %s [OPTIONS]\n"
-      "Decompress one or both tablebase files into raw symbol streams.\n\n"
+      "Decompress pawnless or pawnful tablebase files into raw symbol streams.\n"
+      "Pawnful inputs export their a-, b-, c-, and d-file subtables.\n\n"
       "  -iw, --input-rtbw FILE  decompress the WDL table FILE\n"
       "  -iz, --input-rtbz FILE  decompress the DTZ table FILE\n"
       "  -o, --output-dir DIR  write raw files to DIR (default: .)\n"

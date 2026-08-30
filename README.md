@@ -129,7 +129,8 @@ with the checksum specified in wdl345.txt. Note that these are not md5sums.
 
 **Usage:** `tbdecompress --input-rtbw KQRvKR.rtbw --input-rtbz KQRvKR.rtbz`
 
-Exports each subtable from the specified tablebase files. WDL output is named
+Supports both pawnless and pawnful tablebase files and exports every subtable
+from the specified inputs. Pawnless WDL output is named
 KQRvKR.w.rtbw.raw and KQRvKR.b.rtbw.raw for a two-sided pawnless table, or
 KQRvKR.s.rtbw.raw for a shared table. DTZ output is named KQRvKR.w.rtbz.raw or
 KQRvKR.b.rtbz.raw according to the side stored by the table.
@@ -152,7 +153,7 @@ Export the subtables in the specified WDL file.
 
 --input-rtbz file  (or -iz file)
 
-Export the subtable in the specified DTZ file.
+Export all subtables in the specified DTZ file.
 
 --output-dir dir  (or -o dir)
 
