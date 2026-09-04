@@ -25,6 +25,7 @@ FLAGS += -DCOMPRESSION_THREADS=6
 # Specify the compiler
 # regular linux
 CC = gcc -pthread
+CXX ?= c++
 # cross compiling from Linux to Windows
 #CC = x86_64-w64-mingw32-gcc -pthread
 
@@ -39,6 +40,9 @@ all: rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress
 
 rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress clean:
 	@$(MAKE) -f Makefile.regular $@
+
+tbdecompress-cpp: tbdecompress.cpp
+	$(CXX) -std=c++20 -O3 -pthread $< -o $@
 
 atbgen atbgenp atbver atbverp aclean:
 	@$(MAKE) -f Makefile.atomic $@
@@ -61,7 +65,7 @@ giveaway: gtbgen gtbgenp tbcheck
 
 shatranj: jtbgen jtbgenp tbcheck
 
-.PHONY: rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress clean \
+.PHONY: rtbgen rtbgenp rtbver rtbverp tbcheck tbdecompress tbdecompress-cpp clean \
 	atbgen atbgenp atbver atbverp aclean \
 	stbgen stbgenp sclean \
 	gtbgen gtbgenp gclean \
