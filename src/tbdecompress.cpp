@@ -6,7 +6,7 @@
 
   This file is distributed under the terms of the GNU GPL, version 2.
 
-  Build (Linux/macOS):
+  Build (Linux, macOS, or MinGW-w64):
     c++ -std=c++20 -O3 -pthread tbdecompress.cpp -o tbdecompress
 */
 #define REGULAR
@@ -27,7 +27,9 @@
 #include <thread>
 #include <unistd.h>
 #include <fcntl.h>
+#ifndef _WIN32
 #include <sys/mman.h>
+#endif
 #include <vector>
 
 
@@ -462,16 +464,59 @@ static void run_threaded(void (*func)(thread_data *), uint64_t *work, int) {
   cur_time = stop;
 }
 
-using FD = int;
-using map_t = size_t;
-FD open_file(const char *name) { return open(name, O_RDONLY); }
-void close_file(FD fd) { close(fd); }
+FD open_file(const char *name) {
+#ifdef _WIN32
+  return CreateFileA(name, GENERIC_READ, FILE_SHARE_READ, nullptr,
+      OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, nullptr);
+#else
+  return open(name, O_RDONLY);
+#endif
+}
+void close_file(FD fd) {
+#ifdef _WIN32
+  CloseHandle(fd);
+#else
+  close(fd);
+#endif
+}
 size_t file_size(FD fd) {
+#ifdef _WIN32
+  LARGE_INTEGER size{};
+  if (!GetFileSizeEx(fd, &size) || size.QuadPart < 0 ||
+      static_cast<uint64_t>(size.QuadPart) > SIZE_MAX) {
+    std::fprintf(stderr, "Could not determine input file size.\n");
+    std::exit(EXIT_FAILURE);
+  }
+  return static_cast<size_t>(size.QuadPart);
+#else
   struct stat status{};
-  if (fstat(fd, &status) != 0) return 0;
+  if (fstat(fd, &status) != 0 || status.st_size < 0) {
+    std::fprintf(stderr, "Could not determine input file size: %s\n",
+        std::strerror(errno));
+    std::exit(EXIT_FAILURE);
+  }
   return static_cast<size_t>(status.st_size);
+#endif
 }
 void *map_file(FD fd, bool shared, map_t *map) {
+#ifdef _WIN32
+  (void)shared;
+  *map = CreateFileMappingA(fd, nullptr, PAGE_READONLY, 0, 0, nullptr);
+  if (*map == nullptr) {
+    std::fprintf(stderr, "CreateFileMapping() failed (error %lu).\n",
+        static_cast<unsigned long>(GetLastError()));
+    std::exit(EXIT_FAILURE);
+  }
+  void *data = MapViewOfFile(*map, FILE_MAP_READ, 0, 0, 0);
+  if (data == nullptr) {
+    DWORD error = GetLastError();
+    CloseHandle(*map);
+    std::fprintf(stderr, "MapViewOfFile() failed (error %lu).\n",
+        static_cast<unsigned long>(error));
+    std::exit(EXIT_FAILURE);
+  }
+  return data;
+#else
   *map = file_size(fd);
   void *data = mmap(nullptr, *map, PROT_READ, shared ? MAP_SHARED : MAP_PRIVATE,
       fd, 0);
@@ -483,9 +528,16 @@ void *map_file(FD fd, bool shared, map_t *map) {
   madvise(data, *map, MADV_RANDOM);
 #endif
   return data;
+#endif
 }
 void unmap_file(void *data, map_t map) {
-  if (data) munmap(data, map);
+  if (!data) return;
+#ifdef _WIN32
+  UnmapViewOfFile(data);
+  CloseHandle(map);
+#else
+  munmap(data, map);
+#endif
 }
 
 
@@ -1143,6 +1195,12 @@ struct tb_handle *open_tb_file(const char *name, int wdl)
     exit(EXIT_FAILURE);
   }
   FD fd = open_file(name);
+  if (fd == FD_ERR) {
+    fprintf(stderr, "Could not open %s for memory mapping.\n", name);
+    fclose(H->F);
+    free(H);
+    exit(EXIT_FAILURE);
+  }
   H->data_size = file_size(fd);
   H->data = (uint8_t *)map_file(fd, 1, &(H->mmap));
   close_file(fd);

@@ -146,7 +146,7 @@ compressor, without headers or padding. This target does not require ZSTD.
 
 A standalone C++20 implementation is available in `src/tbdecompress.cpp`. It has
 no project-header or third-party-library dependencies and can be copied and built
-on its own on a POSIX system:
+on its own on Linux, macOS, or Windows with MinGW-w64:
 
 ```sh
 c++ -std=c++20 -O3 -pthread tbdecompress.cpp -o tbdecompress
