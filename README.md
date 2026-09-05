@@ -143,6 +143,17 @@ convention, for example KQPvK.a.w.rtbz.raw.
 
 The raw files contain the mapped and permuted symbol streams used by the Syzygy
 compressor, without headers or padding. This target does not require ZSTD.
+
+A standalone C++20 implementation is available in `src/tbdecompress.cpp`. It has
+no project-header or third-party-library dependencies and can be copied and built
+on its own on Linux, macOS, or Windows with MinGW-w64:
+
+```sh
+c++ -std=c++20 -O3 -pthread tbdecompress.cpp -o tbdecompress
+```
+
+From the `src` directory, `make tbdecompress-cpp` builds the same implementation
+as `tbdecompress-cpp` without replacing the C implementation's executable.
 Either input option may be used independently.
 
 **Options:**
